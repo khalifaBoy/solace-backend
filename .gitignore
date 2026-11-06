@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client
+/generated/prisma/
+/src/generated/prisma/
+
+# Development tool configuration
+.agents/
+.claude/
+.cursor/
+.devin/
+.windsurf/
+skills-lock.json
+
+# Logs and OS files
+npm-debug.log*
+.DS_Store
