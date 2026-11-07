@@ -5,6 +5,8 @@ import {
   getMoods,
   updateMood,
   deleteMood,
+  createDailyMoodAssessment,
+  getTodayMoodAssessment,
 } from "../controllers/mood.controller.js";
 
 import { authenticateToken } from "../middleware/auth.middleware.js";
@@ -25,5 +27,9 @@ router.put("/:id", updateMood);
 
 // Delete mood
 router.delete("/:id", deleteMood);
+
+// Daily mood assessment
+router.post("/assessment", createDailyMoodAssessment);
+router.get("/assessment/today", getTodayMoodAssessment);
 
 export default router;

@@ -19,6 +19,7 @@ model User {
   moodEntries   MoodEntry[]
   activityCompletions ActivityCompletion[]
   journalEntries JournalEntry[]
+  dailyMoodAssessments DailyMoodAssessment[]
 }
 
 model Conversation {
@@ -82,5 +83,27 @@ model JournalEntry {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+}
+
+
+model DailyMoodAssessment {
+  id             String   @id @default(cuid())
+
+  assessmentDate DateTime @db.Date
+
+  answers        Json
+
+  mood           Int
+  emotion        String
+  explanation    String
+  recommendation String
+
+  createdAt      DateTime @default(now())
+
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assessmentDate])
   @@index([userId, createdAt])
 }
