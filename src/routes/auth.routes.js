@@ -1,6 +1,7 @@
 import express from "express";
 import { registerUser, loginUser , 
-  getCurrentUser, updateProfile, verifyEmail} from "../controllers/auth.controller.js";
+  getCurrentUser, updateProfile, verifyEmail, forgotPassword,
+  resetPassword,} from "../controllers/auth.controller.js";
 
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { authLimiter } from "../middleware/rateLimit.js";
@@ -11,6 +12,12 @@ const router = express.Router();
 router.post("/register", authLimiter, registerUser);
 
 router.get("/verify-email", verifyEmail);
+
+// Forgot password
+router.post("/forgot-password", authLimiter, forgotPassword);
+
+// Reset password
+router.post("/reset-password", authLimiter, resetPassword);
 
 // Login
 router.post("/login", authLimiter, loginUser);
