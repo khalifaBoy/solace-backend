@@ -2,29 +2,34 @@ import prisma from "../config/database.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+import crypto from "node:crypto";
+import { sendVerificationEmail } from "../services/email.service.js";
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // 1. Validate required fields
-    if (!name || !email || !password) {
+    // Validate required fields
+    if (!name?.trim() || !email?.trim() || !password) {
       return res.status(400).json({
         success: false,
         message: "Name, email and password are required",
       });
     }
 
-    // 2. Validate email format
+    // Validate email
+    const normalizedEmail = email.trim().toLowerCase();
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please enter a valid email address",
       });
     }
 
-    // 3. Validate password length
+    // Validate password
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
@@ -32,9 +37,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // 4. Check whether user already exists
+    // Check existing user
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
@@ -46,29 +49,72 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // 5. Hash password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 6. Create user
+    // Generate secure verification token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+
+    // Store only the SHA-256 hash
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    // Token expires in 30 minutes
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    // Create user and verification token
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: normalizedEmail,
         password: hashedPassword,
+        emailVerified: false,
+
+        verificationTokens: {
+          create: {
+            token: hashedToken,
+            expiresAt,
+          },
+        },
       },
+
       select: {
         id: true,
         name: true,
         email: true,
+        emailVerified: true,
         createdAt: true,
       },
     });
 
+    // Send verification email
+    try {
+      await sendVerificationEmail(
+        user.email,
+        user.name,
+        rawToken
+      );
+    } catch (emailError) {
+      console.error("Verification email failed:", emailError);
+
+      return res.status(503).json({
+        success: false,
+        message: "Account created, but verification email could not be sent. Please try again later.",
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      });
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Account created successfully",
+      message: "Account created. Please verify your email.",
       user,
     });
+
   } catch (error) {
     console.error("Registration error:", error);
 
@@ -108,6 +154,13 @@ export const loginUser = async (req, res) => {
       password,
       user.password
     );
+
+    if (!user.emailVerified) {
+  return res.status(403).json({
+    success: false,
+    message: "Please verify your email before logging in",
+  });
+}
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -246,3 +299,83 @@ export async function updateProfile(req, res) {
     });
   }
 }
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Verification token is required",
+      });
+    }
+
+    // Hash incoming token
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    // Find token in database
+    const verificationToken =
+      await prisma.verificationToken.findUnique({
+        where: {
+          token: hashedToken,
+        },
+      });
+
+    if (!verificationToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or already used verification token",
+      });
+    }
+
+    // Check expiration
+    if (verificationToken.expiresAt < new Date()) {
+      await prisma.verificationToken.delete({
+        where: {
+          id: verificationToken.id,
+        },
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: "Verification link has expired",
+      });
+    }
+
+    // Verify user and delete token atomically
+    await prisma.$transaction([
+      prisma.user.update({
+        where: {
+          id: verificationToken.userId,
+        },
+        data: {
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+      }),
+
+      prisma.verificationToken.delete({
+        where: {
+          id: verificationToken.id,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now log in.",
+    });
+
+  } catch (error) {
+    console.error("Email verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Email verification failed",
+    });
+  }
+};

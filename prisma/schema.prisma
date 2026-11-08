@@ -8,37 +8,44 @@ datasource db {
 }
 
 model User {
-  id        String         @id @default(cuid())
-  name      String
-  email     String         @unique
-  password  String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
 
-  conversations Conversation[]
-  moodEntries   MoodEntry[]
-  activityCompletions ActivityCompletion[]
-  journalEntries JournalEntry[]
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversations        Conversation[]
+  moodEntries          MoodEntry[]
+  activityCompletions  ActivityCompletion[]
+  journalEntries       JournalEntry[]
   dailyMoodAssessments DailyMoodAssessment[]
+
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Conversation {
-  id        String    @id @default(cuid())
-  title     String    @default("New Conversation")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  title     String   @default("New Conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  messages  Message[]
+  messages Message[]
 }
 
 model Message {
-  id             String       @id @default(cuid())
-  role           String
-  content        String
-  createdAt      DateTime     @default(now())
+  id        String   @id @default(cuid())
+  role      String
+  content   String
+  createdAt DateTime @default(now())
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -53,8 +60,8 @@ model MoodEntry {
   note      String?
   createdAt DateTime @default(now())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -65,45 +72,68 @@ model ActivityCompletion {
   duration    String
   completedAt DateTime @default(now())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, completedAt])
 }
 
 model JournalEntry {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  mood      String
+  id      String @id @default(cuid())
+  title   String
+  content String
+  mood    String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
 
-
 model DailyMoodAssessment {
-  id             String   @id @default(cuid())
+  id String @id @default(cuid())
 
   assessmentDate DateTime @db.Date
 
-  answers        Json
+  answers Json
 
   mood           Int
   emotion        String
   explanation    String
   recommendation String
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, assessmentDate])
   @@index([userId, createdAt])
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
