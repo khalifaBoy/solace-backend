@@ -1,7 +1,7 @@
 import express from "express";
 import { registerUser, loginUser , 
   getCurrentUser, updateProfile, verifyEmail, forgotPassword,
-  resetPassword,} from "../controllers/auth.controller.js";
+  resetPassword, googleLogin} from "../controllers/auth.controller.js";
 
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { authLimiter } from "../middleware/rateLimit.js";
@@ -21,6 +21,9 @@ router.post("/reset-password", authLimiter, resetPassword);
 
 // Login
 router.post("/login", authLimiter, loginUser);
+
+// Google Login
+router.post("/google", authLimiter, googleLogin);
 
 router.get("/me", authLimiter, authenticateToken, getCurrentUser);
 
